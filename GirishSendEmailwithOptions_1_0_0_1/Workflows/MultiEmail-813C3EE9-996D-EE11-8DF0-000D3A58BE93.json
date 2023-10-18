@@ -1,0 +1,364 @@
+{
+  "properties": {
+    "connectionReferences": {
+      "shared_office365": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "glt_sharedoffice365_af685"
+        },
+        "api": {
+          "name": "shared_office365"
+        }
+      },
+      "shared_onedriveforbusiness": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "glt_sharedonedriveforbusiness_7aea7"
+        },
+        "api": {
+          "name": "shared_onedriveforbusiness"
+        }
+      },
+      "shared_excelonlinebusiness": {
+        "runtimeSource": "invoker",
+        "connection": {
+          "connectionReferenceLogicalName": "glt_sharedexcelonlinebusiness_5cfeb"
+        },
+        "api": {
+          "name": "shared_excelonlinebusiness"
+        }
+      }
+    },
+    "definition": {
+      "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+      "contentVersion": "1.0.0.0",
+      "parameters": {
+        "$connections": {
+          "defaultValue": {},
+          "type": "Object"
+        },
+        "$authentication": {
+          "defaultValue": {},
+          "type": "SecureObject"
+        }
+      },
+      "triggers": {
+        "manual": {
+          "metadata": {
+            "operationMetadataId": "22b86942-9114-47ba-b968-34daad755c73"
+          },
+          "type": "Request",
+          "kind": "Button",
+          "inputs": {
+            "schema": {
+              "type": "object",
+              "properties": {},
+              "required": []
+            }
+          }
+        }
+      },
+      "actions": {
+        "varEmailArray_Initialise": {
+          "runAfter": {},
+          "metadata": {
+            "operationMetadataId": "1676573f-a49f-46ea-9ff7-5e6882affaf9"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varEmailArray",
+                "type": "array",
+                "value": [
+                  "girish.uppal@0kmlk.onmicrosoft.com",
+                  "alexw@0kmlk.onmicrosoft.com",
+                  "adelev@0kmlk.onmicrosoft.com"
+                ]
+              }
+            ]
+          }
+        },
+        "Apply_to_each": {
+          "foreach": "@variables('varEmailArray')",
+          "actions": {
+            "Send_email_with_options": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "8c3d0631-13db-4570-9c3e-3aa04064107c"
+              },
+              "type": "OpenApiConnectionWebhook",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+                  "connectionName": "shared_office365",
+                  "operationId": "SendMailWithOptions"
+                },
+                "parameters": {
+                  "optionsEmailSubscription/Message/To": "@item()",
+                  "optionsEmailSubscription/Message/Subject": "Favorite Food",
+                  "optionsEmailSubscription/Message/Options": "Pasta, Pizza, Biryani, Sour dough",
+                  "optionsEmailSubscription/Message/Importance": "Normal",
+                  "optionsEmailSubscription/Message/HideHTMLMessage": false,
+                  "optionsEmailSubscription/Message/ShowHTMLConfirmationDialog": false,
+                  "optionsEmailSubscription/Message/HideMicrosoftFooter": false
+                },
+                "authentication": {
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+                  "type": "Raw"
+                }
+              }
+            },
+            "Append_response_to_Array_variable": {
+              "runAfter": {
+                "Collect_individual_Responses": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "85a5b9c3-7987-4e86-a974-9585f283f403"
+              },
+              "type": "AppendToArrayVariable",
+              "inputs": {
+                "name": "varResultArray",
+                "value": "@outputs('Collect_individual_Responses')"
+              }
+            },
+            "Collect_individual_Responses": {
+              "runAfter": {
+                "Send_email_with_options": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "86d754ab-7d1d-4b9a-8553-a72e1393d35f"
+              },
+              "type": "Compose",
+              "inputs": {
+                "UserEmail": "@outputs('Send_email_with_options')?['body/UserEmailAddress']",
+                "UserResponse": "@outputs('Send_email_with_options')?['body/SelectedOption']"
+              }
+            }
+          },
+          "runAfter": {
+            "Create_Excel_file_in_One_Drive": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "8254cfec-0ee1-4b4c-a4f1-292d89e3b3ce"
+          },
+          "type": "Foreach",
+          "runtimeConfiguration": {
+            "concurrency": {
+              "repetitions": 20
+            }
+          }
+        },
+        "varResult_initialise": {
+          "runAfter": {
+            "varEmailArray_Initialise": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "1c4df385-cd2b-4baf-ac34-70f4e4c83bc0"
+          },
+          "type": "InitializeVariable",
+          "inputs": {
+            "variables": [
+              {
+                "name": "varResultArray",
+                "type": "array"
+              }
+            ]
+          }
+        },
+        "Send_an_email_(V2)": {
+          "runAfter": {
+            "Create_HTML_table": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "397c7cdf-a89b-4e8b-8cc4-92e1f6448823"
+          },
+          "type": "OpenApiConnection",
+          "inputs": {
+            "host": {
+              "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+              "connectionName": "shared_office365",
+              "operationId": "SendEmailV2"
+            },
+            "parameters": {
+              "emailMessage/To": "girish.uppal@0kmlk.onmicrosoft.com",
+              "emailMessage/Subject": "All the users have responded",
+              "emailMessage/Body": "<p>@{body('Create_HTML_table')}</p>",
+              "emailMessage/Importance": "Normal"
+            },
+            "authentication": {
+              "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+              "type": "Raw"
+            }
+          }
+        },
+        "Create_Excel_file_in_One_Drive": {
+          "actions": {
+            "Get_file_content": {
+              "runAfter": {},
+              "metadata": {
+                "b!zcjIytuLoEGEMnEUCGq6rdtjoNc4MfxOrblIal1MqgD7PI-FLEMUTL6qlsW6Box1.01J4RRN4K2LTAXO3MK3VCKUSH5ZGWF35CS": "/myExcel.xlsx",
+                "operationMetadataId": "ccf5dbf6-ecf6-4652-b411-3415cbba3a7d"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                  "connectionName": "shared_onedriveforbusiness",
+                  "operationId": "GetFileContent"
+                },
+                "parameters": {
+                  "id": "b!zcjIytuLoEGEMnEUCGq6rdtjoNc4MfxOrblIal1MqgD7PI-FLEMUTL6qlsW6Box1.01J4RRN4K2LTAXO3MK3VCKUSH5ZGWF35CS",
+                  "inferContentType": true
+                },
+                "authentication": {
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+                  "type": "Raw"
+                }
+              }
+            },
+            "Create_file": {
+              "runAfter": {
+                "Get_file_content": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "28a6655f-3e3e-4918-8513-5edd2be262c0"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_onedriveforbusiness",
+                  "connectionName": "shared_onedriveforbusiness",
+                  "operationId": "CreateFile"
+                },
+                "parameters": {
+                  "folderPath": "/",
+                  "name": "@{utcNow('yyyy-MM-ddTHHmmss')}.xlsx",
+                  "body": "@body('Get_file_content')"
+                },
+                "authentication": {
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+                  "type": "Raw"
+                }
+              },
+              "runtimeConfiguration": {
+                "contentTransfer": {
+                  "transferMode": "Chunked"
+                }
+              }
+            },
+            "Create_table": {
+              "runAfter": {
+                "Create_file": [
+                  "Succeeded"
+                ]
+              },
+              "metadata": {
+                "operationMetadataId": "50b7d112-cb7d-4d34-8dbb-40ee516a989b",
+                "tableId": null
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                  "connectionName": "shared_excelonlinebusiness",
+                  "operationId": "CreateTable"
+                },
+                "parameters": {
+                  "source": "me",
+                  "drive": "b!zcjIytuLoEGEMnEUCGq6rdtjoNc4MfxOrblIal1MqgD7PI-FLEMUTL6qlsW6Box1",
+                  "file": "@outputs('Create_file')?['body/Id']",
+                  "table/Range": "$A1:$B1",
+                  "table/TableName": "surveyResponse",
+                  "table/ColumnsNames": "UserEmail,UserResponse"
+                },
+                "authentication": {
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+                  "type": "Raw"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "varResult_initialise": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "fad5a7b7-3165-490c-b0ff-0a778d34e7cb"
+          },
+          "type": "Scope"
+        },
+        "Loop_result_and_write_in_Excel": {
+          "foreach": "@variables('varResultArray')",
+          "actions": {
+            "Add_a_row_into_a_table": {
+              "runAfter": {},
+              "metadata": {
+                "operationMetadataId": "f98d86d9-7d3d-4321-9482-984e5e28b2f2",
+                "tableId": "@outputs('Create_table')?['body/name']"
+              },
+              "type": "OpenApiConnection",
+              "inputs": {
+                "host": {
+                  "apiId": "/providers/Microsoft.PowerApps/apis/shared_excelonlinebusiness",
+                  "connectionName": "shared_excelonlinebusiness",
+                  "operationId": "AddRowV2"
+                },
+                "parameters": {
+                  "source": "me",
+                  "drive": "b!zcjIytuLoEGEMnEUCGq6rdtjoNc4MfxOrblIal1MqgD7PI-FLEMUTL6qlsW6Box1",
+                  "file": "@outputs('Create_file')?['body/Id']",
+                  "table": "@outputs('Create_table')?['body/name']",
+                  "item": "@items('Loop_result_and_write_in_Excel')"
+                },
+                "authentication": {
+                  "value": "@json(decodeBase64(triggerOutputs().headers['X-MS-APIM-Tokens']))['$ConnectionKey']",
+                  "type": "Raw"
+                }
+              }
+            }
+          },
+          "runAfter": {
+            "Apply_to_each": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "53486795-62e7-49b1-9702-2f66f664f212"
+          },
+          "type": "Foreach"
+        },
+        "Create_HTML_table": {
+          "runAfter": {
+            "Loop_result_and_write_in_Excel": [
+              "Succeeded"
+            ]
+          },
+          "metadata": {
+            "operationMetadataId": "7c768987-0974-4150-81ad-20ae77ba94ee"
+          },
+          "type": "Table",
+          "inputs": {
+            "from": "@variables('varResultArray')",
+            "format": "HTML"
+          }
+        }
+      }
+    },
+    "templateName": null
+  },
+  "schemaVersion": "1.0.0.0"
+}
